@@ -1,0 +1,72 @@
+#ifndef QTCEF_H
+#define QTCEF_H
+
+#include <QtWidgets>
+
+namespace Qtcef
+{
+    class App : public QObject
+    {
+        Q_OBJECT
+        Q_DISABLE_COPY(App)
+    public:
+        static App *instance();
+    protected:
+        virtual void onQtInitialized() {}
+        virtual void onCefInitialized() {}
+    protected:
+        static bool qtcef_register(const QMetaObject *metaObject);
+        App() = default;
+    };
+
+    class Window : public QMainWindow
+    {
+        Q_OBJECT
+    public:
+        static Window *create(const QUrl &url, const QStringList &bridgeNames = {}, const QJsonObject &data = {}, QWidget *parent = {});
+        void dispatchEvent(const QString &type, const QJsonObject &event);
+    signals:
+        void loaded();
+    protected:
+        void resizeEvent(QResizeEvent *event) override;
+        void closeEvent(QCloseEvent *event) override;
+    private:
+        explicit Window(QWidget *parent);
+        ~Window() override;
+    private:
+        [[maybe_unused]] void *_;
+    };
+
+    class Bridge : public QObject
+    {
+        Q_OBJECT
+    public:
+        static Bridge *instance(const QMetaObject *metaObject);
+    protected:
+        static void dispatchEvent(const QString &type, const QJsonObject &event);
+    protected:
+        static bool qtcef_register(const QMetaObject *metaObject);
+    };
+}
+
+#define S QStringLiteral
+
+#define QTCEF_APP(name) \
+public: \
+    static name *instance() { return qobject_cast<name *>(Qtcef::App::instance()); } \
+    Q_INVOKABLE name() = default; \
+private: \
+    static inline bool _qtcef_register = Qtcef::App::qtcef_register(&name::staticMetaObject);
+
+#define QTCEF_BRIDGE(name) \
+    static inline bool _qtcef_register = Qtcef::Bridge::qtcef_register(&name::staticMetaObject); \
+public: \
+    static name *instance() { return qobject_cast<name *>(Qtcef::Bridge::instance(&name::staticMetaObject)); } \
+    Q_INVOKABLE name() = default;
+
+#ifndef Q_MOC_RUN
+#define QTCEF_NOT_BRIDGE
+#define QTCEF_ASYNC
+#endif
+
+#endif // QTCEF_H
